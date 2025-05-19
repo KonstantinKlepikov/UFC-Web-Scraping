@@ -7,15 +7,13 @@ import requests
 from requests.exceptions import ConnectionError
 
 from scraper.constants import (
-    CONNECTION_LOST_TIMOUT,
-    CONNECTION_LOST_TRYING,
     EVENT_URLS,
     FIGHT_URLS,
     FIGHTER_URLS,
-    TO_MANY_REQUESTS_TIMOUT,
-    TO_MANY_REQUESTS_TRYING,
+    SHORT_TIMOUT,
     USER_AGENT_HEADERS,
 )
+from scraper.utils import HttpException, HttpSolver
 
 
 def write_urls_to_csv(file_path: Path, urls: list[str]) -> None:
@@ -29,14 +27,19 @@ def write_urls_to_csv(file_path: Path, urls: list[str]) -> None:
 def get_event_urls() -> list[str]:
     """Scrapes url of each UFC event from ufcstats.com"""
 
-    trying = 0
+    # trying = 0
+    solver = HttpSolver()
     print('Scraping event links from ufcstats.com')
     while True:
         try:
-            main_url = requests.get(
+            response = requests.get(
                 'http://ufcstats.com/statistics/events/completed?page=all'
             )
-            main_event_soup = bs4.BeautifulSoup(main_url.text, 'lxml')
+            if response.status_code == 429:
+                if solver.is_completely_429():
+                    raise HttpException('429')
+
+            main_event_soup = bs4.BeautifulSoup(response.text, 'lxml')
 
             # Adds href to list if href contains a link with keyword 'event-details'
             all_event_urls = [
@@ -50,25 +53,32 @@ def get_event_urls() -> list[str]:
             print(len(all_event_urls), 'event links successfully scraped')
             return all_event_urls
         except ConnectionError:
-            if trying == CONNECTION_LOST_TRYING:
-                raise
-            print('Scraping event timout')
-            time.sleep(CONNECTION_LOST_TIMOUT)
-            trying += 1
+            if solver.is_completely_connection_lost():
+                raise HttpException('Connection lost')
+            # if trying == CONNECTION_LOST_TRYING:
+            #     raise
+            # print('Scraping event timout')
+            # time.sleep(CONNECTION_LOST_TIMOUT)
+            # trying += 1
             continue
 
 
 def get_fight_urls(event_urls: list[str]) -> None:
     """Scrapes url of each UFC fight from ufcstats.com"""
 
-    trying = 0
+    # trying = 0
+    solver = HttpSolver()
     print('Scrapes fight URLs from event pages')
     while True:
         try:
             all_fight_urls = []
             for url in event_urls:
-                event_url = requests.get(url)
-                event_soup = bs4.BeautifulSoup(event_url.text, 'lxml')
+                response = requests.get(url)
+                if response.status_code == 429:
+                    if solver.is_completely_429():
+                        raise HttpException('429')
+
+                event_soup = bs4.BeautifulSoup(response.text, 'lxml')
                 for item in event_soup.find_all(
                     'a', class_='b-flag b-flag_style_green'
                 ):
@@ -78,11 +88,13 @@ def get_fight_urls(event_urls: list[str]) -> None:
             print(len(all_fight_urls), 'fight links successfully scraped')
             break
         except ConnectionError:
-            if trying == CONNECTION_LOST_TRYING:
-                raise
-            print('Scraping fight timout')
-            time.sleep(CONNECTION_LOST_TIMOUT)
-            trying += 1
+            if solver.is_completely_connection_lost():
+                raise HttpException('Connection lost')
+            # if trying == CONNECTION_LOST_TRYING:
+            #     raise
+            # print('Scraping fight timout')
+            # time.sleep(CONNECTION_LOST_TIMOUT)
+            # trying += 1
             continue
 
 
@@ -94,8 +106,9 @@ def get_fighter_urls() -> None:
     # Creates a list of each fighter page alphabetically
     main_url_list: list[requests.Response] = []
     for letter in 'abcdefghijklmnopqrstuvwxyz':
-        trying = 0
-        print(f'Try to parse {letter=}, {trying=}')
+        # trying = 0
+        solver = HttpSolver()
+        print(f'Try to parse {letter=}')
         while True:
             try:
                 response = requests.get(
@@ -103,22 +116,28 @@ def get_fighter_urls() -> None:
                     headers={'User-agent': USER_AGENT_HEADERS},
                 )
                 if response.status_code == 429:
-                    if trying == TO_MANY_REQUESTS_TRYING:
-                        print(f'To much 429 for letter {letter}')
-                        break
-                    time.sleep(TO_MANY_REQUESTS_TIMOUT)
-                    trying += 1
+                    if solver.is_completely_429():
+                        raise HttpException('429')
+
+                    # if response.status_code == 429:
+                    #     if trying == TO_MANY_REQUESTS_TRYING:
+                    #         print(f'To much 429 for letter {letter}')
+                    #         break
+                    #     time.sleep(TO_MANY_REQUESTS_TIMOUT)
+                    #     trying += 1
                     continue
 
                 main_url_list.append(response)
-                time.sleep(1)
+                time.sleep(SHORT_TIMOUT)
                 break
             except ConnectionError:
-                if trying == CONNECTION_LOST_TRYING:
-                    raise
-                print('Scraping fighter urls timout')
-                time.sleep(CONNECTION_LOST_TIMOUT)
-                trying += 1
+                if solver.is_completely_connection_lost():
+                    raise HttpException('Connection lost')
+                # if trying == CONNECTION_LOST_TRYING:
+                #     raise
+                # print('Scraping fighter urls timout')
+                # time.sleep(CONNECTION_LOST_TIMOUT)
+                # trying += 1
                 continue
 
     main_soup_list = [bs4.BeautifulSoup(url.text, 'lxml') for url in main_url_list]

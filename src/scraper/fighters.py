@@ -6,14 +6,19 @@ import bs4
 import requests
 
 from scraper.constants import (
-    CONNECTION_LOST_TIMOUT,
-    CONNECTION_LOST_TRYING,
     FIGHTER_DATA_PATH,
     FIGHTER_FIELD,
     FIGHTER_TABLE_ROWS,
     FIGHTER_URLS,
+    SHORT_TIMOUT,
 )
-from scraper.utils import create_csv_file, filter_duplicate_urls, get_urls
+from scraper.utils import (
+    HttpException,
+    HttpSolver,
+    create_csv_file,
+    filter_duplicate_urls,
+    get_urls,
+)
 
 
 def parse_l_name(name: str) -> str:
@@ -92,16 +97,19 @@ def scrape_fighters():
     with open(FIGHTER_DATA_PATH, 'a+') as f:
         writer = csv.writer(f)
 
-        # Iterates through each url and scrapes key details
         for url in urls:
 
-            trying = 0
+            solver = HttpSolver()
             print(f'Scrapes {url}')
 
             while True:
                 try:
-                    fighter_url = requests.get(url)
-                    fighter_soup = bs4.BeautifulSoup(fighter_url.text, 'lxml')
+                    response = requests.get(url)
+                    if response.status_code == 429:
+                        if solver.is_completely_429():
+                            raise HttpException('429')
+
+                    fighter_soup = bs4.BeautifulSoup(response.text, 'lxml')
 
                     name = fighter_soup.select('span')[0].text.split()
                     nickname = fighter_soup.select('p.b-content__Nickname')[0]
@@ -148,6 +156,8 @@ def scrape_fighters():
                     )
 
                     urls_scraped += 1
+                    time.sleep(SHORT_TIMOUT)
+                    break
 
                 except IndexError as e:
                     print(f'Error scraping fighter page: {url}')
@@ -155,11 +165,8 @@ def scrape_fighters():
                     break
 
                 except ConnectionError:
-                    if trying == CONNECTION_LOST_TRYING:
-                        raise
-                    print('Scraping fighters timout')
-                    time.sleep(CONNECTION_LOST_TIMOUT)
-                    trying += 1
+                    if solver.is_completely_connection_lost():
+                        raise HttpException('Connection lost')
                     continue
 
     print(f'{urls_scraped}/{len(urls)} fighters scraped successfully')

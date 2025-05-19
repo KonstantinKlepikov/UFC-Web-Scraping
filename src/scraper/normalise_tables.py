@@ -151,8 +151,8 @@ def save_to_file(
 def normalise_tables():
 
     ufc_events = pd.read_csv(EVENT_DATA_PATH)
-    ufc_fights = pd.read_csv(FIGHTSTATS_DATA_PATH)
-    ufc_fight_stats = pd.read_csv(FIGHT_DATA_PATH)
+    ufc_fights = pd.read_csv(FIGHT_DATA_PATH)
+    ufc_fight_stats = pd.read_csv(FIGHTSTATS_DATA_PATH)
     ufc_fighters = pd.read_csv(FIGHTER_DATA_PATH)
 
     print('Adding primary keys')

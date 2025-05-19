@@ -6,17 +6,22 @@ import bs4
 import requests
 
 from scraper.constants import (
-    CONNECTION_LOST_TIMOUT,
-    CONNECTION_LOST_TRYING,
     EVENT_DATA_PATH,
     EVENT_FIELD,
     EVENT_TABLE_ROWS,
     EVENT_URLS,
+    SHORT_TIMOUT,
 )
-from scraper.utils import create_csv_file, filter_duplicate_urls, get_urls
+from scraper.utils import (
+    HttpException,
+    HttpSolver,
+    create_csv_file,
+    filter_duplicate_urls,
+    get_urls,
+)
 
 
-def scrape_events() -> None:
+def scrape_events() -> None:  # noqa: C901
     """Scrapes details of each UFC event appends to CSV file 'ufc_event_data'"""
 
     urls = get_urls(EVENT_URLS)
@@ -34,16 +39,19 @@ def scrape_events() -> None:
     with open(EVENT_DATA_PATH, 'a+') as f:
         writer = csv.writer(f)
 
-        # Iterates through each event url to scrape key details
         for url in urls:
 
-            trying = 0
+            solver = HttpSolver()
             print(f'Scrapes {url}')
 
             while True:
                 try:
-                    event_request = requests.get(url)
-                    event_soup = bs4.BeautifulSoup(event_request.text, 'lxml')
+                    response = requests.get(url)
+                    if response.status_code == 429:
+                        if solver.is_completely_429():
+                            raise HttpException('429')
+
+                    event_soup = bs4.BeautifulSoup(response.text, 'lxml')
                     event_full_location = (
                         event_soup.select('li')[4].text.split(':')[1].strip().split(',')
                     )
@@ -76,17 +84,18 @@ def scrape_events() -> None:
                             url,
                         ]
                     )
+
+                    time.sleep(SHORT_TIMOUT)
+                    break
+
                 except IndexError as e:
                     print(f'Error scraping events page: {url}')
                     print(f'Error details: {e}')
                     break
 
                 except ConnectionError:
-                    if trying == CONNECTION_LOST_TRYING:
-                        raise
-                    print('Scraping events timout')
-                    time.sleep(CONNECTION_LOST_TIMOUT)
-                    trying += 1
+                    if solver.is_completely_connection_lost():
+                        raise HttpException('Connection lost')
                     continue
 
     print(f'{urls_scraped}/{len(urls)} events successfully scraped')

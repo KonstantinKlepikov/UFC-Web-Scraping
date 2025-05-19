@@ -7,15 +7,19 @@ import requests
 from requests.exceptions import ConnectionError
 
 from scraper.constants import (
-    CONNECTION_LOST_TIMOUT,
-    CONNECTION_LOST_TRYING,
     FIGHT_DATA_PATH,
     FIGHT_FIELD,
     FIGHT_TABLE_ROWS,
     FIGHT_URLS,
     SHORT_TIMOUT,
 )
-from scraper.utils import create_csv_file, filter_duplicate_urls, get_urls
+from scraper.utils import (
+    HttpException,
+    HttpSolver,
+    create_csv_file,
+    filter_duplicate_urls,
+    get_urls,
+)
 
 
 def get_referee(overview) -> str:
@@ -102,13 +106,17 @@ def scrape_fights() -> None:  # noqa: C901
 
         for url in urls:
 
-            trying = 0
+            solver = HttpSolver()
             print(f'Scrapes {url}')
 
             while True:
                 try:
-                    fight_url = requests.get(url)
-                    fight_soup = bs4.BeautifulSoup(fight_url.text, 'lxml')
+                    response = requests.get(url)
+                    if response.status_code == 429:
+                        if solver.is_completely_429():
+                            raise HttpException('429')
+
+                    fight_soup = bs4.BeautifulSoup(response.text, 'lxml')
 
                     # Define key select statements
                     overview = fight_soup.select('i.b-fight-details__text-item')
@@ -127,7 +135,7 @@ def scrape_fights() -> None:  # noqa: C901
                         f_1, f_2 = get_fighters(fight_details, fight_soup)
                     except AttributeError as e:
                         print(f'Skip this fight and move to the next one: {e}')
-                        continue
+                        break
                     num_rounds = overview[2].text.split(':')[1].strip()[0]
                     title_fight = get_title_fight(fight_type)
                     weight_class = get_weight_class(fight_type)
@@ -172,11 +180,8 @@ def scrape_fights() -> None:  # noqa: C901
                     break
 
                 except ConnectionError:
-                    if trying == CONNECTION_LOST_TRYING:
-                        raise
-                    print('Scraping fight timout')
-                    time.sleep(CONNECTION_LOST_TIMOUT)
-                    trying += 1
+                    if solver.is_completely_connection_lost():
+                        raise HttpException('Connection lost')
                     continue
 
     print(f'{urls_scraped}/{len(urls)} links scraped successfully')

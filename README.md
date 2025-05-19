@@ -11,7 +11,9 @@ Install dependencies and activate poetry environment
 
 `poetry install --with dev --no-root`
 
-Install system `make` and use it for run script
+Change `USER_AGENT_HEADERS` in `src/scraer/constants.py`
+
+Install system `make` and use it for run scraper script
 
 `make get`
 
