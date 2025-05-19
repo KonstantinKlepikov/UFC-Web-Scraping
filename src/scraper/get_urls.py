@@ -97,21 +97,29 @@ def get_fighter_urls() -> None:
         trying = 0
         print(f'Try to parse {letter=}, {trying=}')
         while True:
-            response = requests.get(
-                f'http://ufcstats.com/statistics/fighters?char={letter}&page=all',
-                headers={'User-agent': USER_AGENT_HEADERS},
-            )
-            if response.status_code == 429:
-                if trying == TO_MANY_REQUESTS_TRYING:
-                    print(f'To much 429 for letter {letter}')
-                    break
-                time.sleep(TO_MANY_REQUESTS_TIMOUT)
+            try:
+                response = requests.get(
+                    f'http://ufcstats.com/statistics/fighters?char={letter}&page=all',
+                    headers={'User-agent': USER_AGENT_HEADERS},
+                )
+                if response.status_code == 429:
+                    if trying == TO_MANY_REQUESTS_TRYING:
+                        print(f'To much 429 for letter {letter}')
+                        break
+                    time.sleep(TO_MANY_REQUESTS_TIMOUT)
+                    trying += 1
+                    continue
+
+                main_url_list.append(response)
+                time.sleep(1)
+                break
+            except ConnectionError:
+                if trying == CONNECTION_LOST_TRYING:
+                    raise
+                print('Scraping fighter urls timout')
+                time.sleep(CONNECTION_LOST_TIMOUT)
                 trying += 1
                 continue
-
-            main_url_list.append(response)
-            time.sleep(1)
-            break
 
     main_soup_list = [bs4.BeautifulSoup(url.text, 'lxml') for url in main_url_list]
     fighter_urls = []

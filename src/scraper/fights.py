@@ -13,6 +13,7 @@ from scraper.constants import (
     FIGHT_FIELD,
     FIGHT_TABLE_ROWS,
     FIGHT_URLS,
+    SHORT_TIMOUT,
 )
 from scraper.utils import create_csv_file, filter_duplicate_urls, get_urls
 
@@ -103,6 +104,7 @@ def scrape_fights() -> None:  # noqa: C901
 
             trying = 0
             print(f'Scrapes {url}')
+
             while True:
                 try:
                     fight_url = requests.get(url)
@@ -166,7 +168,7 @@ def scrape_fights() -> None:  # noqa: C901
                     )
 
                     urls_scraped += 1
-                    time.sleep(1)
+                    time.sleep(SHORT_TIMOUT)
                     break
 
                 except ConnectionError:

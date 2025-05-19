@@ -1,10 +1,13 @@
 import csv
+import time
 from datetime import datetime
 
 import bs4
 import requests
 
 from scraper.constants import (
+    CONNECTION_LOST_TIMOUT,
+    CONNECTION_LOST_TRYING,
     FIGHTER_DATA_PATH,
     FIGHTER_FIELD,
     FIGHTER_TABLE_ROWS,
@@ -91,58 +94,72 @@ def scrape_fighters():
 
         # Iterates through each url and scrapes key details
         for url in urls:
-            try:
-                fighter_url = requests.get(url)
-                fighter_soup = bs4.BeautifulSoup(fighter_url.text, 'lxml')
 
-                name = fighter_soup.select('span')[0].text.split()
-                nickname = fighter_soup.select('p.b-content__Nickname')[0]
-                details = fighter_soup.select('li.b-list__box-list-item')
-                record = (
-                    fighter_soup.select('span.b-content__title-record')[0]
-                    .text.split(':')[1]
-                    .strip()
-                    .split('-')
-                )
+            trying = 0
+            print(f'Scrapes {url}')
 
-                fighter_f_name = name[0]
-                fighter_l_name = parse_l_name(name)
-                fighter_nickname = parse_nickname(nickname)
-                fighter_height_cm = parse_height(details[0])
-                fighter_weight_lbs = parse_weight(details[1])
-                fighter_reach_cm = parse_reach(details[2])
-                fighter_stance = parse_stance(details[3])
-                fighter_dob = parse_dob(details[4])
-                fighter_w = record[0]
-                fighter_l = record[1]
-                fighter_d = record[-1][0] if len(record[-1]) > 1 else record[-1]
-                fighter_nc_dq = (
-                    record[-1].split('(')[-1][0] if len(record[-1]) > 1 else 'NULL'
-                )
+            while True:
+                try:
+                    fighter_url = requests.get(url)
+                    fighter_soup = bs4.BeautifulSoup(fighter_url.text, 'lxml')
 
-                # Adds new row to csv file
-                writer.writerow(
-                    [
-                        fighter_f_name.strip(),
-                        fighter_l_name.strip(),
-                        fighter_nickname,
-                        fighter_height_cm,
-                        fighter_weight_lbs,
-                        fighter_reach_cm,
-                        fighter_stance,
-                        fighter_dob[0:10],
-                        fighter_w,
-                        fighter_l,
-                        fighter_d,
-                        fighter_nc_dq,
-                        url,
-                    ]
-                )
+                    name = fighter_soup.select('span')[0].text.split()
+                    nickname = fighter_soup.select('p.b-content__Nickname')[0]
+                    details = fighter_soup.select('li.b-list__box-list-item')
+                    record = (
+                        fighter_soup.select('span.b-content__title-record')[0]
+                        .text.split(':')[1]
+                        .strip()
+                        .split('-')
+                    )
 
-                urls_scraped += 1
+                    fighter_f_name = name[0]
+                    fighter_l_name = parse_l_name(name)
+                    fighter_nickname = parse_nickname(nickname)
+                    fighter_height_cm = parse_height(details[0])
+                    fighter_weight_lbs = parse_weight(details[1])
+                    fighter_reach_cm = parse_reach(details[2])
+                    fighter_stance = parse_stance(details[3])
+                    fighter_dob = parse_dob(details[4])
+                    fighter_w = record[0]
+                    fighter_l = record[1]
+                    fighter_d = record[-1][0] if len(record[-1]) > 1 else record[-1]
+                    fighter_nc_dq = (
+                        record[-1].split('(')[-1][0] if len(record[-1]) > 1 else 'NULL'
+                    )
 
-            except IndexError as e:
-                print(f'Error scraping fighter page: {url}')
-                print(f'Error details: {e}')
+                    # Adds new row to csv file
+                    writer.writerow(
+                        [
+                            fighter_f_name.strip(),
+                            fighter_l_name.strip(),
+                            fighter_nickname,
+                            fighter_height_cm,
+                            fighter_weight_lbs,
+                            fighter_reach_cm,
+                            fighter_stance,
+                            fighter_dob[0:10],
+                            fighter_w,
+                            fighter_l,
+                            fighter_d,
+                            fighter_nc_dq,
+                            url,
+                        ]
+                    )
+
+                    urls_scraped += 1
+
+                except IndexError as e:
+                    print(f'Error scraping fighter page: {url}')
+                    print(f'Error details: {e}')
+                    break
+
+                except ConnectionError:
+                    if trying == CONNECTION_LOST_TRYING:
+                        raise
+                    print('Scraping fighters timout')
+                    time.sleep(CONNECTION_LOST_TIMOUT)
+                    trying += 1
+                    continue
 
     print(f'{urls_scraped}/{len(urls)} fighters scraped successfully')
