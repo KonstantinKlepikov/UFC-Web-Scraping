@@ -1,0 +1,75 @@
+[tool.poetry]
+name = "UFCScraper"
+version = "1.0.0"
+description = "UFC Scraper"
+authors = ["Konstantin Klepikov <oformleno@gmail.com>"]
+readme = "README.md"
+package-mode = false
+
+
+[tool.poetry.dependencies]
+python = ">=3.12, <4.0"
+beautifulsoup4 = "^4.13.4"
+pandas = "^2.2.3"
+lxml = "^5.4.0"
+kaggle = "^1.7.4.5"
+
+
+[tool.poetry.group.dev.dependencies]
+# tests
+pytest = "^8.3.3"
+# lint
+flake8 = "^6.1.0"
+flake8-broken-line = "^1.0.0"
+flake8-return = "^1.2.0"
+flake8-isort = "^6.1.1"
+flake8-quotes = "^3.3.2"
+flake8-bugbear = "^23.9.16"
+flake8-pyproject = "^1.2.3"
+pep8-naming = "^0.13.3"
+mypy = "^1.13.0"
+ruff = "^0.7.2"
+# blue = "^0.9.1" use pipx
+types-requests = "^2.32.0.20250515"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+
+[tool.blue]
+line-length = 88
+preview = true
+
+
+[tool.isort]
+profile = "black"
+
+
+[tool.flake8]
+max-line-length = 88
+max-complexity = 10
+extend-immutable-calls = ["Depends"]
+
+[tool.ruff]
+line-length = 88
+
+
+[tool.ruff.format]
+quote-style = "single"
+
+
+[tool.mypy]
+check_untyped_defs = true
+mypy_path = ["src", "tests"]
+ignore_missing_imports = true
+
+
+[tool.pytest.ini_options]
+pythonpath = ["app", "src"]
+python_files = "test_*.py"
+testpaths = "tests"
+norecursedirs = ["venv*", ".venv"]
+addopts = "-v -x -s -p no:warnings"
+asyncio_mode = "auto"
