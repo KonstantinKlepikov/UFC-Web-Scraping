@@ -189,7 +189,6 @@ def scrape_fightstats() -> None:
             while True:
                 try:
                     response = requests.get(url)
-                    print(response.status_code)
                     if response.status_code == 429:
                         if solver.is_completely_429():
                             raise HttpException('429')
