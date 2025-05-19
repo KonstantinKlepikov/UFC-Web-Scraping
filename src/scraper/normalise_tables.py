@@ -143,8 +143,8 @@ def save_to_file(
     ufc_fighters.set_index('fighter_id', inplace=True)
 
     ufc_events.to_csv(EVENT_DATA_PATH)
-    ufc_fights.to_csv(FIGHTSTATS_DATA_PATH)
-    ufc_fight_stats.to_csv(FIGHT_DATA_PATH)
+    ufc_fights.to_csv(FIGHT_DATA_PATH)
+    ufc_fight_stats.to_csv(FIGHTSTATS_DATA_PATH)
     ufc_fighters.to_csv(FIGHTER_DATA_PATH)
 
 
